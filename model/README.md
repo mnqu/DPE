@@ -1,5 +1,5 @@
 #Model
-The folder contains the codes of the DPE model.
+The folder contains the training codes of the DPE model.
 
 ##Input
 DPE relies on four input files, including the string vocabulary, co-occurrence network between strings, training patterns, and the synonym seeds.
