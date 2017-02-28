@@ -39,5 +39,8 @@ usa america 1
 america usa 1
 ```
 
+##Output
+DPE will output three files, including the file of the string embeddings, the file containing the parameters of the distributional score function, and the file containing the parameters of the pattern classifier.
+
 ##Run
 Users can directly use the script (run.sh) we provide to train the model.
