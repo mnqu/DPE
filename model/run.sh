@@ -15,4 +15,4 @@ samples=10000
 alpha=0.01
 threads=30
 
-./embed -string-set ${string_set} -label-set label.txt -occur-net ${occur_net} -syn-net ${syn_net} -pattern ${pattern} -output-string ${output_string} -output-pat ${output_pat} -output-dis ${output_dis} -binary 1 -size ${size} -negative ${negative} -samples ${samples} -alpha ${alpha} -threads ${threads}
+./dpe -string-set ${string_set} -label-set label.txt -occur-net ${occur_net} -syn-net ${syn_net} -pattern ${pattern} -output-string ${output_string} -output-pat ${output_pat} -output-dis ${output_dis} -binary 1 -size ${size} -negative ${negative} -samples ${samples} -alpha ${alpha} -threads ${threads}
