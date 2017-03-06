@@ -1,7 +1,7 @@
 #!/bin/sh
 
 string_set="../data/word.set"
-occur_net="../data/net_word_clean.txt"
+occur_net="../data/net_word.txt"
 syn_net="../data/net_syn.txt"
 pattern="../data/pattern.txt"
 
