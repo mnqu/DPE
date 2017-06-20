@@ -99,9 +99,9 @@ for eid, dic in eid2score.items():
 		sr[k] += cr[k]
 
 for k in range(k_max):
-	#print 'P@' + str(k+1), sh[k] / sp[k]
-	print sh[k] / sp[k]
+	print 'P@' + str(k+1), sh[k] / sp[k]
+	#print sh[k] / sp[k]
 for k in range(k_max):
-        #print 'R@' + str(k+1), sh[k] / sr[k]
-	print sh[k] / sr[k]
+	print 'R@' + str(k+1), sh[k] / sr[k]
+	#print sh[k] / sr[k]
 
