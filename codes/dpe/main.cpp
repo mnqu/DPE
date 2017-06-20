@@ -6,7 +6,6 @@
 #include <pthread.h>
 #include <gsl/gsl_rng.h>
 #include "linelib.h"
-#include "ransampl.h"
 
 char string_set[MAX_STRING], label_set[MAX_STRING], occur_net[MAX_STRING], syn_net[MAX_STRING], pattern[MAX_STRING], output_string[MAX_STRING], output_pat[MAX_STRING], output_dis[MAX_STRING];
 int binary = 0, num_threads = 1, vector_size = 100, negative = 5;

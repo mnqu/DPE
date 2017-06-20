@@ -326,24 +326,6 @@ int ArgPos(char *str, int argc, char **argv) {
 
 int main(int argc, char **argv) {
     int i;
-    if (argc == 1) {
-        printf("WORD VECTOR estimation toolkit v 0.1b\n\n");
-        printf("Options:\n");
-        printf("Parameters for training:\n");
-        printf("\t-train <file>\n");
-        printf("\t\tUse text data from <file> to train the model\n");
-        printf("\t-output <file>\n");
-        printf("\t\tUse <file> to save the resulting word vectors / word clusters\n");
-        printf("\t-window <int>\n");
-        printf("\t\tSet max skip length between words; default is 5\n");
-        printf("\t-min-count <int>\n");
-        printf("\t\tThis will discard words that appear less than <int> times; default is 0\n");
-        printf("\t-debug <int>\n");
-        printf("\t\tSet the debug mode (default = 2 = more info during training)\n");
-        printf("\nExamples:\n");
-        printf("./lan -train train.txt -output btm.txt -debug 2 -min-count 5 -window 5\n\n");
-        return 0;
-    }
     if ((i = ArgPos((char *)"-vocab", argc, argv)) > 0) strcpy(vocab_file, argv[i + 1]);
     if ((i = ArgPos((char *)"-index", argc, argv)) > 0) strcpy(index_file, argv[i + 1]);
     if ((i = ArgPos((char *)"-vector", argc, argv)) > 0) strcpy(vector_file, argv[i + 1]);

@@ -1,5 +1,93 @@
 #include "linelib.h"
 
+sampler::sampler()
+{
+    n = 0;
+    alias = 0;
+    prob = 0;
+}
+
+sampler::~sampler()
+{
+    n = 0;
+    if (alias != NULL) { free(alias); alias = NULL; }
+    if (prob != NULL) { free(prob); prob = NULL; }
+}
+
+void sampler::init(long long ndata, double *p)
+{
+    n = ndata;
+    
+    alias = (long long *)malloc(n * sizeof(long long));
+    prob = (double *)malloc(n * sizeof(double));
+    
+    long long i, a, g;
+    
+    // Local workspace:
+    double *P;
+    long long *S, *L;
+    P = (double *)malloc(n * sizeof(double));
+    S = (long long *)malloc(n * sizeof(long long));
+    L = (long long *)malloc(n * sizeof(long long));
+    
+    // Normalise given probabilities:
+    double sum = 0;
+    for (i = 0; i < n; ++i)
+    {
+        if (p[i] < 0)
+        {
+            fprintf(stderr, "ransampl: invalid probability p[%d]<0\n", (int)(i));
+            exit(1);
+        }
+        sum += p[i];
+    }
+    if (!sum)
+    {
+        fprintf(stderr, "ransampl: no nonzero probability\n");
+        exit(1);
+    }
+    for (i = 0; i < n; ++i) P[i] = p[i] * n / sum;
+    
+    // Set separate index lists for small and large probabilities:
+    long long nS = 0, nL = 0;
+    for (i = n - 1; i >= 0; --i)
+    {
+        // at variance from Schwarz, we revert the index order
+        if (P[i] < 1)
+            S[nS++] = i;
+        else
+            L[nL++] = i;
+    }
+    
+    // Work through index lists
+    while (nS && nL)
+    {
+        a = S[--nS]; // Schwarz's l
+        g = L[--nL]; // Schwarz's g
+        prob[a] = P[a];
+        alias[a] = g;
+        P[g] = P[g] + P[a] - 1;
+        if (P[g] < 1)
+            S[nS++] = g;
+        else
+            L[nL++] = g;
+    }
+    
+    while (nL) prob[L[--nL]] = 1;
+    
+    while (nS) prob[S[--nS]] = 1;
+    
+    free(P);
+    free(S);
+    free(L);
+}
+
+long long sampler::draw(double ran1, double ran2)
+{
+    long long i = n * ran1;
+    return ran2 < prob[i] ? i : alias[i];
+}
+
 line_node::line_node() : vec(NULL, 0, 0)
 {
     node = NULL;
@@ -219,7 +307,6 @@ line_adjacency::line_adjacency()
     adjmode = 1;
     edge_tp = 0;
     u_wei = NULL;
-    smp_u = NULL;
     u_nb_cnt = NULL;
     u_nb_id = NULL;
     u_nb_wei = NULL;
@@ -243,13 +330,13 @@ line_adjacency::~line_adjacency()
     if (v_nb_wei != NULL) {free(v_nb_wei); v_nb_wei = NULL;}
     if (smp_u_nb != NULL)
     {
-        free(smp_u_nb);
+        delete[] smp_u_nb;
         smp_u_nb = NULL;
     }
     if (smp_v_nb != NULL)
     {
-        free(smp_u_nb);
-        smp_u_nb = NULL;
+        delete[] smp_v_nb;
+        smp_v_nb = NULL;
     }
 }
 
@@ -294,8 +381,8 @@ void line_adjacency::init(line_hin *p_hin, char edge_type, int mode)
         if (u_nb_cnt[u] == 0) u_wei[u] = 0;
         else u_wei[u] = 1;
     }
-    smp_u = ransampl_alloc(node_u->node_size);
-    ransampl_set(smp_u, u_wei);
+    
+    smp_u.init(node_u->node_size, u_wei);
     
     if (adjmode == 22) for (int k = 0; k != node_u->node_size; k++)
     {
@@ -346,20 +433,18 @@ void line_adjacency::init(line_hin *p_hin, char edge_type, int mode)
     free(pst_v);
     free(u_len);
     
-    smp_u_nb = (ransampl_ws **)malloc(node_u->node_size * sizeof(ransampl_ws *));
+    smp_u_nb = new sampler[node_u->node_size];
     for (int k = 0; k != node_u->node_size; k++)
     {
         if (u_nb_cnt[k] == 0) continue;
-        smp_u_nb[k] = ransampl_alloc(u_nb_cnt[k]);
-        ransampl_set(smp_u_nb[k], u_nb_wei[k]);
+        smp_u_nb[k].init(u_nb_cnt[k], u_nb_wei[k]);
     }
     
-    smp_v_nb = (ransampl_ws **)malloc(node_v->node_size * sizeof(ransampl_ws *));
+    smp_v_nb = new sampler[node_v->node_size];
     for (int k = 0; k != node_v->node_size; k++)
     {
         if (v_nb_cnt[k] == 0) continue;
-        smp_v_nb[k] = ransampl_alloc(v_nb_cnt[k]);
-        ransampl_set(smp_v_nb[k], v_nb_wei[k]);
+        smp_v_nb[k].init(v_nb_cnt[k], v_nb_wei[k]);
     }
     
     printf("Reading adjacency from file: %s, DONE!\n", phin->hin_file);
@@ -375,18 +460,18 @@ int line_adjacency::sample(int u, double (*func_rand_num)())
     if (adjmode == 1)
     {
         if (u_nb_cnt[u] == 0) return -1;
-        index = (int)(ransampl_draw(smp_u_nb[u], func_rand_num(), func_rand_num()));
+        index = (int)(smp_u_nb[u].draw(func_rand_num(), func_rand_num()));
         node = u_nb_id[u][index];
         return node;
     }
     else
     {
         if (u_nb_cnt[u] == 0) return -1;
-        index = (int)(ransampl_draw(smp_u_nb[u], func_rand_num(), func_rand_num()));
+        index = (int)(smp_u_nb[u].draw(func_rand_num(), func_rand_num()));
         v = u_nb_id[u][index];
         
         if (v_nb_cnt[v] == 0) return -1;
-        index = (int)(ransampl_draw(smp_v_nb[v], func_rand_num(), func_rand_num()));
+        index = (int)(smp_v_nb[v].draw(func_rand_num(), func_rand_num()));
         node = v_nb_id[v][index];
         
         return node;
@@ -395,7 +480,7 @@ int line_adjacency::sample(int u, double (*func_rand_num)())
 
 int line_adjacency::sample_head(double (*func_rand_num)())
 {
-    return (int)(ransampl_draw(smp_u, func_rand_num(), func_rand_num()));
+    return (int)(smp_u.draw(func_rand_num(), func_rand_num()));
 }
 
 line_trainer_line::line_trainer_line()
@@ -408,7 +493,6 @@ line_trainer_line::line_trainer_line()
     u_nb_wei = NULL;
     u_wei = NULL;
     v_wei = NULL;
-    smp_u = NULL;
     smp_u_nb = NULL;
     expTable = NULL;
     neg_table = NULL;
@@ -424,14 +508,9 @@ line_trainer_line::~line_trainer_line()
     if (u_nb_wei != NULL) {free(u_nb_wei); u_nb_wei = NULL;}
     if (u_wei != NULL) {free(u_wei); u_wei = NULL;}
     if (v_wei != NULL) {free(v_wei); v_wei = NULL;}
-    if (smp_u != NULL)
-    {
-        ransampl_free(smp_u);
-        smp_u = NULL;
-    }
     if (smp_u_nb != NULL)
     {
-        free(smp_u_nb);
+        delete[] smp_u_nb;
         smp_u_nb = NULL;
     }
     if (neg_table != NULL) {free(neg_table); neg_table = NULL;}
@@ -497,14 +576,12 @@ void line_trainer_line::init(line_hin *p_hin, char edge_type)
     free(pst);
     
     // init sampler for edges
-    smp_u = ransampl_alloc(node_u->node_size);
-    ransampl_set(smp_u, u_wei);
-    smp_u_nb = (ransampl_ws **)malloc(node_u->node_size * sizeof(ransampl_ws *));
+    smp_u.init(node_u->node_size, u_wei);
+    smp_u_nb = new sampler[node_u->node_size];
     for (int k = 0; k != node_u->node_size; k++)
     {
         if (u_nb_cnt[k] == 0) continue;
-        smp_u_nb[k] = ransampl_alloc(u_nb_cnt[k]);
-        ransampl_set(smp_u_nb[k], u_nb_wei[k]);
+        smp_u_nb[k].init(u_nb_cnt[k], u_nb_wei[k]);
     }
     
     // Init negative sampling table
@@ -677,9 +754,9 @@ void line_trainer_line::train_sample(real lr, int neg_samples, real *_error_vec,
 {
     int u, v, index;
     
-    u = (int)(ransampl_draw(smp_u, func_rand_num(), func_rand_num()));
+    u = (int)(smp_u.draw(func_rand_num(), func_rand_num()));
     if (u_nb_cnt[u] == 0) return;
-    index = (int)(ransampl_draw(smp_u_nb[u], func_rand_num(), func_rand_num()));
+    index = (int)(smp_u_nb[u].draw(func_rand_num(), func_rand_num()));
     v = u_nb_id[u][index];
     
     train_uv(u, v, lr, neg_samples, _error_vec, rand_index);
@@ -689,9 +766,9 @@ void line_trainer_line::train_sample_od3(real lr, int neg_samples, real *_error_
 {
     int u, v, index;
     
-    u = (int)(ransampl_draw(smp_u, func_rand_num(), func_rand_num()));
+    u = (int)(smp_u.draw(func_rand_num(), func_rand_num()));
     if (u_nb_cnt[u] == 0) return;
-    index = (int)(ransampl_draw(smp_u_nb[u], func_rand_num(), func_rand_num()));
+    index = (int)(smp_u_nb[u].draw(func_rand_num(), func_rand_num()));
     v = u_nb_id[u][index];
     
     train_uv_od3(u, v, lr, neg_samples, _error_vec, rand_index);
@@ -701,9 +778,9 @@ void line_trainer_line::train_sample_od3_attention(real lr, int neg_samples, rea
 {
     int u, v, index;
     
-    u = (int)(ransampl_draw(smp_u, func_rand_num(), func_rand_num()));
+    u = (int)(smp_u.draw(func_rand_num(), func_rand_num()));
     if (u_nb_cnt[u] == 0) return;
-    index = (int)(ransampl_draw(smp_u_nb[u], func_rand_num(), func_rand_num()));
+    index = (int)(smp_u_nb[u].draw(func_rand_num(), func_rand_num()));
     v = u_nb_id[u][index];
     
     train_uv_od3_attention(u, v, lr, neg_samples, _error_vec, rand_index, lr2, _para);
@@ -716,8 +793,8 @@ void line_trainer_line::train_sample_depth(real lr, int neg_samples, real *_erro
     
     node_lst.clear();
     
-    u = (int)(ransampl_draw(smp_u, func_rand_num(), func_rand_num()));
-    index = (int)(ransampl_draw(smp_u_nb[u], func_rand_num(), func_rand_num()));
+    u = (int)(smp_u.draw(func_rand_num(), func_rand_num()));
+    index = (int)(smp_u_nb[u].draw(func_rand_num(), func_rand_num()));
     v = u_nb_id[u][index];
     
     if (pst == 'r')
@@ -765,7 +842,6 @@ line_trainer_norm::line_trainer_norm() : para(NULL, 0)
     u_nb_wei = NULL;
     u_wei = NULL;
     v_wei = NULL;
-    smp_u = NULL;
     smp_u_nb = NULL;
     _para = NULL;
 }
@@ -779,14 +855,9 @@ line_trainer_norm::~line_trainer_norm()
     if (u_nb_wei != NULL) {free(u_nb_wei); u_nb_wei = NULL;}
     if (u_wei != NULL) {free(u_wei); u_wei = NULL;}
     if (v_wei != NULL) {free(v_wei); v_wei = NULL;}
-    if (smp_u != NULL)
-    {
-        ransampl_free(smp_u);
-        smp_u = NULL;
-    }
     if (smp_u_nb != NULL)
     {
-        free(smp_u_nb);
+        delete[] smp_u_nb;
         smp_u_nb = NULL;
     }
     if (_para != NULL)
@@ -856,14 +927,12 @@ void line_trainer_norm::init(line_hin *p_hin, char edge_type)
     free(pst);
     
     // init sampler for edges
-    smp_u = ransampl_alloc(node_u->node_size);
-    ransampl_set(smp_u, u_wei);
-    smp_u_nb = (ransampl_ws **)malloc(node_u->node_size * sizeof(ransampl_ws *));
+    smp_u.init(node_u->node_size, u_wei);
+    smp_u_nb = new sampler[node_u->node_size];
     for (int k = 0; k != node_u->node_size; k++)
     {
         if (u_nb_cnt[k] == 0) continue;
-        smp_u_nb[k] = ransampl_alloc(u_nb_cnt[k]);
-        ransampl_set(smp_u_nb[k], u_nb_wei[k]);
+        smp_u_nb[k].init(u_nb_cnt[k], u_nb_wei[k]);
     }
     
     // init para
@@ -936,9 +1005,9 @@ void line_trainer_norm::train_sample(real lr, real margin, int dis_type, real *_
 {
     int u, v, index;
     
-    u = (int)(ransampl_draw(smp_u, func_rand_num(), func_rand_num()));
+    u = (int)(smp_u.draw(func_rand_num(), func_rand_num()));
     if (u_nb_cnt[u] == 0) return;
-    index = (int)(ransampl_draw(smp_u_nb[u], func_rand_num(), func_rand_num()));
+    index = (int)(smp_u_nb[u].draw(func_rand_num(), func_rand_num()));
     v = u_nb_id[u][index];
     
     train_uv(u, v, lr, margin, dis_type, _error_vec, func_rand_num());
@@ -951,8 +1020,8 @@ void line_trainer_norm::train_sample_depth(real lr, real margin, int dis_type, r
     
     node_lst.clear();
     
-    u = (int)(ransampl_draw(smp_u, func_rand_num(), func_rand_num()));
-    index = (int)(ransampl_draw(smp_u_nb[u], func_rand_num(), func_rand_num()));
+    u = (int)(smp_u.draw(func_rand_num(), func_rand_num()));
+    index = (int)(smp_u_nb[u].draw(func_rand_num(), func_rand_num()));
     v = u_nb_id[u][index];
     
     if (pst == 'r')
@@ -999,7 +1068,7 @@ void line_trainer_norm::output(const char *file_name, int binary)
     fprintf(fo, "%d\n", vector_size);
     if (binary) for (int b = 0; b != vector_size; b++) fwrite(&_para[b], sizeof(real), 1, fo);
     else for (int b = 0; b != vector_size; b++) fprintf(fo, "%lf ", _para[b]);
-        fprintf(fo, "\n");
+    fprintf(fo, "\n");
     fclose(fo);
 }
 
@@ -1012,7 +1081,6 @@ line_trainer_reg::line_trainer_reg()
     u_nb_wei = NULL;
     u_wei = NULL;
     v_wei = NULL;
-    smp_u = NULL;
     smp_u_nb = NULL;
 }
 
@@ -1025,11 +1093,6 @@ line_trainer_reg::~line_trainer_reg()
     if (u_nb_wei != NULL) {free(u_nb_wei); u_nb_wei = NULL;}
     if (u_wei != NULL) {free(u_wei); u_wei = NULL;}
     if (v_wei != NULL) {free(v_wei); v_wei = NULL;}
-    if (smp_u != NULL)
-    {
-        ransampl_free(smp_u);
-        smp_u = NULL;
-    }
     if (smp_u_nb != NULL)
     {
         free(smp_u_nb);
@@ -1097,14 +1160,12 @@ void line_trainer_reg::init(line_hin *p_hin, char edge_type)
     free(pst);
     
     // init sampler for edges
-    smp_u = ransampl_alloc(node_u->node_size);
-    ransampl_set(smp_u, u_wei);
-    smp_u_nb = (ransampl_ws **)malloc(node_u->node_size * sizeof(ransampl_ws *));
+    smp_u.init(node_u->node_size, u_wei);
+    smp_u_nb = new sampler[node_u->node_size];
     for (int k = 0; k != node_u->node_size; k++)
     {
         if (u_nb_cnt[k] == 0) continue;
-        smp_u_nb[k] = ransampl_alloc(u_nb_cnt[k]);
-        ransampl_set(smp_u_nb[k], u_nb_wei[k]);
+        smp_u_nb[k].init(u_nb_cnt[k], u_nb_wei[k]);
     }
 }
 
@@ -1127,9 +1188,9 @@ void line_trainer_reg::train_sample(real lr, double (*func_rand_num)())
 {
     int u, v, index;
     
-    u = (int)(ransampl_draw(smp_u, func_rand_num(), func_rand_num()));
+    u = (int)(smp_u.draw(func_rand_num(), func_rand_num()));
     if (u_nb_cnt[u] == 0) return;
-    index = (int)(ransampl_draw(smp_u_nb[u], func_rand_num(), func_rand_num()));
+    index = (int)(smp_u_nb[u].draw(func_rand_num(), func_rand_num()));
     v = u_nb_id[u][index];
     
     train_uv(u, v, lr);
@@ -1142,8 +1203,8 @@ void line_trainer_reg::train_sample_depth(real lr, double (*func_rand_num)(), in
     
     node_lst.clear();
     
-    u = (int)(ransampl_draw(smp_u, func_rand_num(), func_rand_num()));
-    index = (int)(ransampl_draw(smp_u_nb[u], func_rand_num(), func_rand_num()));
+    u = (int)(smp_u.draw(func_rand_num(), func_rand_num()));
+    index = (int)(smp_u_nb[u].draw(func_rand_num(), func_rand_num()));
     v = u_nb_id[u][index];
     
     if (pst == 'r')
@@ -1684,7 +1745,7 @@ void line_trainer_feature::ReadWord(char *word, FILE *fin)
                 break;
             }
             if (ch == '\n') {
-                strcpy(word, (char *)"</s>");
+                strcpy(word, (char *)"</ENDLINE>");
                 return;
             }
             else continue;
@@ -1733,7 +1794,7 @@ void line_trainer_feature::init(const char *file_name, line_node *p_label, line_
         while (1)
         {
             ReadWord(sfea, fi);
-            if (strcmp(sfea, "</s>") == 0) break;
+            if (strcmp(sfea, "</ENDLINE>") == 0) break;
             feaid = fea->search(sfea);
             if (feaid == -1) continue;
             vtfea.push_back(feaid);

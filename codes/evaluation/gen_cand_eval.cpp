@@ -1,17 +1,3 @@
-//  Copyright 2013 Google Inc. All Rights Reserved.
-//
-//  Licensed under the Apache License, Version 2.0 (the "License");
-//  you may not use this file except in compliance with the License.
-//  You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-//  Unless required by applicable law or agreed to in writing, software
-//  distributed under the License is distributed on an "AS IS" BASIS,
-//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  See the License for the specific language governing permissions and
-//  limitations under the License.
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -377,20 +363,6 @@ int ArgPos(char *str, int argc, char **argv) {
 
 int main(int argc, char **argv) {
     int i;
-    if (argc == 1) {
-        printf("WORD VECTOR estimation toolkit v 0.1b\n\n");
-        printf("Options:\n");
-        printf("Parameters for training:\n");
-        printf("\t-train <file>\n");
-        printf("\t\tUse text data from <file> to train the model\n");
-        printf("\t-output <file>\n");
-        printf("\t\tUse <file> to save the resulting word vectors / word clusters\n");
-        printf("\t-size <int>\n");
-        printf("\t\tSet size of word vectors; default is 100\n");
-        printf("\nExamples:\n");
-        printf("./btm2vec -train btm.txt -output vec.txt -debug 2 -size 200 -samples 100 -negative 5 -hs 0 -binary 1\n\n");
-        return 0;
-    }
     if ((i = ArgPos((char *)"-data", argc, argv)) > 0) strcpy(data_file, argv[i + 1]);
     if ((i = ArgPos((char *)"-vector", argc, argv)) > 0) strcpy(vector_file, argv[i + 1]);
     if ((i = ArgPos((char *)"-output-cand", argc, argv)) > 0) strcpy(output_cand_file, argv[i + 1]);

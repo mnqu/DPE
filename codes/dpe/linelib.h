@@ -8,7 +8,6 @@
 #include <set>
 #include <string>
 #include <Eigen/Dense>
-#include "ransampl.h"
 #include <iostream>
 
 #define MAX_STRING 500
@@ -49,6 +48,20 @@ struct triple
         }
         return t1.h < t2.h;
     }
+};
+
+class sampler
+{
+    long long n;
+    long long *alias;
+    double *prob;
+    
+public:
+    sampler();
+    ~sampler();
+    
+    void init(long long ndata, double *p);
+    long long draw(double ran1, double ran2);
 };
 
 class line_node;
@@ -129,13 +142,13 @@ protected:
     char edge_tp;
     
     double *u_wei;
-    ransampl_ws *smp_u;
+    sampler smp_u;
     
     int *u_nb_cnt; int **u_nb_id; double **u_nb_wei;
-    ransampl_ws **smp_u_nb;
+    sampler *smp_u_nb;
     
     int *v_nb_cnt; int **v_nb_id; double **v_nb_wei;
-    ransampl_ws **smp_v_nb;
+    sampler *smp_v_nb;
     
 public:
     line_adjacency();
@@ -159,7 +172,7 @@ protected:
     
     int *u_nb_cnt; int **u_nb_id; double **u_nb_wei;
     double *u_wei, *v_wei;
-    ransampl_ws *smp_u, **smp_u_nb;
+    sampler smp_u, *smp_u_nb;
     real *expTable;
     int *neg_table;
     
@@ -187,7 +200,7 @@ protected:
     
     int *u_nb_cnt; int **u_nb_id; double **u_nb_wei;
     double *u_wei, *v_wei;
-    ransampl_ws *smp_u, **smp_u_nb;
+    sampler smp_u, *smp_u_nb;
     
     char edge_tp;
     
@@ -212,7 +225,7 @@ protected:
     
     int *u_nb_cnt; int **u_nb_id; double **u_nb_wei;
     double *u_wei, *v_wei;
-    ransampl_ws *smp_u, **smp_u_nb;
+    sampler smp_u, *smp_u_nb;
     
     char edge_tp;
     

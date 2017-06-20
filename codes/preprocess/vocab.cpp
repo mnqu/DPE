@@ -10,7 +10,7 @@ using namespace std;
 const int vocab_hash_size = 30000000;
 
 struct vocab_word {
-    long long cn, ndoc;
+    long long cn;
     char *word;
 };
 
@@ -20,8 +20,7 @@ char train_file[MAX_STRING], output_file[MAX_STRING];
 
 struct vocab_word *vocab;
 int *vocab_hash;
-long long vocab_max_size = 1000, vocab_size = 0, output_size = 0, doc_size = 0;
-std::set<int> doc;
+long long vocab_max_size = 1000, vocab_size = 0, output_size = 0;
 
 void ReadWord(char *word, FILE *fin) {
     int a = 0, ch;
@@ -74,7 +73,6 @@ int AddWordToVocab(char *word) {
     vocab[vocab_size].word = (char *)calloc(length, sizeof(char));
     strcpy(vocab[vocab_size].word, word);
     vocab[vocab_size].cn = 0;
-    vocab[vocab_size].ndoc = 0;
     vocab_size++;
     // Reallocate memory if needed
     if (vocab_size + 2 >= vocab_max_size) {
@@ -168,49 +166,17 @@ void LearnVocabFromTrainFile() {
     fclose(fin);
 }
 
-
-void IDF()
-{
-    FILE *fi = fopen(train_file, "rb");
-    char word[MAX_STRING];
-    int wid;
-    std::set<int>::iterator iter;
-    doc.clear();
-    while (1)
-    {
-        ReadWord(word, fi);
-        if (feof(fi)) break;
-        
-        wid = SearchVocab(word);
-        if (wid == -1) continue;
-        doc.insert(wid);
-        if (wid == 0)
-        {
-            for (iter = doc.begin(); iter != doc.end(); iter++)
-            {
-                wid = (*iter);
-                vocab[wid].ndoc += 1;
-            }
-            doc.clear();
-            doc_size += 1;
-        }
-    }
-    fclose(fi);
-    printf("Doc size: %lld\n", doc_size);
-}
-
 void TrainModel()
 {
     vocab = (struct vocab_word *)calloc(vocab_max_size, sizeof(struct vocab_word));
     vocab_hash = (int *)calloc(vocab_hash_size, sizeof(int));
     LearnVocabFromTrainFile();
-    IDF();
     if (output_size == 0) output_size = vocab_size;
     printf("Output size: %lld\n", output_size);
     
     FILE *fo = fopen(output_file, "wb");
     for (int k = 0; k != output_size; k++)
-        fprintf(fo, "%s\t%d\t%lf\n", vocab[k].word, k, log(doc_size * 1.0 / (vocab[k].ndoc + 1.0)));
+        fprintf(fo, "%s\n", vocab[k].word);
     fclose(fo);
 }
 
@@ -228,24 +194,6 @@ int ArgPos(char *str, int argc, char **argv) {
 
 int main(int argc, char **argv) {
     int i;
-    if (argc == 1) {
-        printf("WORD VECTOR estimation toolkit v 0.1b\n\n");
-        printf("Options:\n");
-        printf("Parameters for training:\n");
-        printf("\t-train <file>\n");
-        printf("\t\tUse text data from <file> to train the model\n");
-        printf("\t-output <file>\n");
-        printf("\t\tUse <file> to save the resulting word vectors / word clusters\n");
-        printf("\t-window <int>\n");
-        printf("\t\tSet max skip length between words; default is 5\n");
-        printf("\t-min-count <int>\n");
-        printf("\t\tThis will discard words that appear less than <int> times; default is 0\n");
-        printf("\t-debug <int>\n");
-        printf("\t\tSet the debug mode (default = 2 = more info during training)\n");
-        printf("\nExamples:\n");
-        printf("./lan -train train.txt -output btm.txt -debug 2 -min-count 5 -window 5\n\n");
-        return 0;
-    }
     if ((i = ArgPos((char *)"-train", argc, argv)) > 0) strcpy(train_file, argv[i + 1]);
     if ((i = ArgPos((char *)"-output", argc, argv)) > 0) strcpy(output_file, argv[i + 1]);
     if ((i = ArgPos((char *)"-size", argc, argv)) > 0) output_size = atoi(argv[i + 1]);
