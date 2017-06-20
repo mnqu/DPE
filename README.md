@@ -1,5 +1,5 @@
 # DPE
-This is an implementation of the DPE model proposed in the KDD 2017 paper "[Automatic Synonym Detection with Knowledge Bases]".
+This is an implementation of the DPE model proposed in the KDD 2017 paper "Automatic Synonym Detection with Knowledge Bases".
 
 We provide the codes for data preprocessing, model training and model evaluation in the "codes" folder. Also, we provide the Wiki-Freebase dataset in the "data" folder.
 

@@ -1,4 +1,4 @@
-#Wiki-Freebase
+# Wiki-Freebase
 The data can be downloaded from the following link:
 
 https://drive.google.com/open?id=0B1ppCIx64gDoNmtfcjNaLWUtd1U
