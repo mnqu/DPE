@@ -20,7 +20,7 @@ After installing the two packages and modifying the package paths, users may go 
 ## Running
 To run the DPE model and evaluate it on the Wiki-Freebase dataset, users may directly use the example script (run.sh) we provide. By running this scipt, the program will first generate all the training data for DPE, such as the co-occurrence network of strings. Then it will learn the string embeddings as well as the distributional score function of the distributional module and the pattern classifier of the pattern module. Finally, the distributional module and the pattern module will mutually collaborate for synonym prediction.
 
-Compiling, training and evaluating DPE on the Wiki-Freebase dataset.
+Compiling, training and evaluating DPE on the Wiki-Freebase dataset:
 ```
 ./run.sh
 ```
